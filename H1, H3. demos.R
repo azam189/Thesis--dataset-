@@ -1,31 +1,5 @@
-install.packages("tidyverse")   
-library(tidyverse)
-library(lme4)
-library(ggplot2)
-install.packages("reshape2")
-library(reshape2)
-install.packages("dplyr") 
-library(dplyr)
-install.packages("car")
-library(car)
-install.packages("mediation")
-install.packages("lavaan")
-install.packages("semPlot")  
-library(mediation)
-library(lavaan)
-library(semPlot)
 
-
-data_project_main<- read.csv2("C:/Users/Azam/Documents/Goethe Uni/WiSe 24-25/Thesis process/Data Analysis/Mian data 08,02,2025/data_project_main.csv")
-str(data_project_main) 
-head(data_project_main)
-str(data_project_main)
-head(data_project_main)
-data_project_main[data_project_main == -77] <- NA
-head(data_project_main)
-
-
-###############################################H1: Slogan Liking##################################
+############################################### H1: Slogan Liking##################################
 #  liking variables 
 liking_with_repetition <- c("v_41", "v_46", "v_48", "v_50", "v_52", "v_54", 
                             "v_233", "v_223", "v_225", "v_227", "v_229", "v_231")
@@ -303,6 +277,7 @@ plot_predicted_liking(data_project_main, "age", "Predicted Liking Score by Sloga
 plot_predicted_liking(data_project_main, "gender", "Predicted Liking Score by Slogan Type and Gender", "Gender")
 
 plot_predicted_liking(data_project_main, "education", "Predicted Liking Score by Slogan Type and Education Level", "Education Level")
+
 
 
 
