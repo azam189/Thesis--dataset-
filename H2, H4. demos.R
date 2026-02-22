@@ -1,28 +1,5 @@
-install.packages("tidyverse")   
-library(tidyverse)
-library(lme4)
-library(ggplot2)
-install.packages("reshape2")
-library(reshape2)
-install.packages("dplyr") 
-library(dplyr)
-install.packages("car")
-library(car)
-install.packages("mediation")
-install.packages("lavaan")
-install.packages("semPlot")  
-library(mediation)
-library(lavaan)
-library(semPlot)
 
-data_project_main<- read.csv2("C:/Users/Azam/Documents/Goethe Uni/WiSe 24-25/Thesis process/Data Analysis/Mian data 08,02,2025/data_project_main.csv")
-str(data_project_main) 
-head(data_project_main)
-str(data_project_main)
-head(data_project_main)
-data_project_main[data_project_main == -77] <- NA
-head(data_project_main)
-################################################### H2. Slogan Memory
+################################################### H2. Slogan Memory  #################################
 
 slogans_with_repetition <- c("v_276", "v_278", "v_289", "v_315", "v_316", "v_328")
 slogans_without_repetition <- c("v_280", "v_281", "v_294", "v_311", "v_313", "v_323")
@@ -69,7 +46,7 @@ descriptive_stats <- descriptive_stats %>%
 print(descriptive_stats)
 
 
-# To visualze
+# To visualize
 ggplot(descriptive_stats, aes(x = factor(repetition, labels = c("No Repetition", "Repetition")), 
                               y = mean_memory, fill = factor(repetition))) +
   geom_bar(stat = "identity", position = "dodge", color = "black", width = 0.6) +
@@ -106,7 +83,7 @@ data_long$fluency_composite <- rowMeans(data_long[, c("v_244", "v_246", "v_248",
                                         na.rm = TRUE)
 
 
-# 1.Total Effect (c)
+# 1. Total Effect (c)
 model_total <- glm(memory_numeric ~ repetition, family = binomial, data = data_long)
 summary(model_total)  
 
@@ -231,6 +208,7 @@ ggplot(data_long, aes(x = repetition, y = predicted_memory, color = mother_langu
     axis.title = element_text(size = 12),
     axis.text = element_text(size = 10)
   )
+
 
 
 
