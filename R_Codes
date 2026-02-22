@@ -1,0 +1,150 @@
+# ==============================================================
+# Marketing Analytics Case Study: Word Repetition in Slogans
+# Author: Azam
+# Goal: Analyze effect of word repetition on slogan liking and memory,
+#       investigate processing fluency as mediator, control for demographics
+# ==============================================================
+
+# -----------------------------
+# 1. Load Libraries
+# -----------------------------
+library(tidyverse)    # Data wrangling and visualization
+library(car)          # ANOVA assumption checks
+library(effsize)      # Cohen's d effect size
+library(mediation)    # Causal mediation analysis
+library(ggplot2)      # Visualization
+
+# -----------------------------
+# 2. Load Data
+# -----------------------------
+data_path <- "C:/Users/Azam/Documents/Goethe Uni/WiSe 24-25/Thesis process/Data Analysis/Mian data 08,02,2025/data_project_main.csv"
+data <- read.csv2(data_path)
+
+# Replace missing codes with NA
+data[data == -77] <- NA
+
+# -----------------------------
+# 3. Data Cleaning & Variable Construction
+# -----------------------------
+
+# --- Slogan liking ---
+liking_with_rep <- c("v_41", "v_46", "v_48", "v_50", "v_52", "v_54", "v_233", "v_223", "v_225", "v_227", "v_229", "v_231")
+liking_without_rep <- c("v_42", "v_47", "v_49", "v_51", "v_53", "v_55", "v_243", "v_224", "v_226", "v_228", "v_230", "v_232")
+data$liking_score <- rowMeans(data[, c(liking_with_rep, liking_without_rep)], na.rm = TRUE)
+
+# --- Slogan type ---
+fluency_with_rep <- c("v_244","v_246","v_248","v_250","v_252","v_254","v_256","v_258","v_260","v_262","v_264","v_266")
+fluency_without_rep <- c("v_245","v_247","v_249","v_251","v_253","v_255","v_257","v_259","v_261","v_263","v_265","v_267")
+
+data$fluency_with_rep <- rowMeans(data[, fluency_with_rep], na.rm = TRUE)
+data$fluency_without_rep <- rowMeans(data[, fluency_without_rep], na.rm = TRUE)
+data$fluency_score <- rowMeans(data[, c("fluency_with_rep", "fluency_without_rep")], na.rm = TRUE)
+
+# Determine group based on fluency data completeness
+data$slogan_type <- ifelse(rowMeans(!is.na(data[, fluency_with_rep])) > rowMeans(!is.na(data[, fluency_without_rep])),
+                           "With_Repetition", "Without_Repetition")
+data$slogan_type <- factor(data$slogan_type, levels = c("With_Repetition", "Without_Repetition"))
+
+# -----------------------------
+# 4. Slogan Liking Analysis (H1 & H3)
+# -----------------------------
+
+# --- Descriptive stats ---
+desc_liking <- data %>% group_by(slogan_type) %>%
+  summarise(mean_liking = mean(liking_score, na.rm = TRUE),
+            sd_liking = sd(liking_score, na.rm = TRUE))
+print(desc_liking)
+
+# --- Check ANOVA assumptions ---
+shapiro.test(data$liking_score)  # Normality
+leveneTest(liking_score ~ slogan_type, data = data)  # Homogeneity
+
+# --- ANOVA ---
+anova_liking <- aov(liking_score ~ slogan_type, data = data)
+summary(anova_liking)
+
+# --- Effect size ---
+cohen.d(liking_score ~ slogan_type, data = data)
+
+# --- Mediation analysis: fluency as mediator ---
+# Total effect
+total_effect <- lm(liking_score ~ slogan_type, data = data)
+# Path a
+a_path <- lm(fluency_score ~ slogan_type, data = data)
+# Path b & direct effect
+med_model <- lm(liking_score ~ slogan_type + fluency_score, data = data)
+# Mediation
+med_result <- mediate(a_path, med_model, treat = "slogan_type", mediator = "fluency_score",
+                      boot = TRUE, sims = 5000)
+summary(med_result)
+
+# -----------------------------
+# 5. Slogan Memory Analysis (H2 & H4)
+# -----------------------------
+
+# --- Long-format memory data ---
+slogans_with_rep <- c("v_276", "v_278", "v_289", "v_315", "v_316", "v_328")
+slogans_without_rep <- c("v_280", "v_281", "v_294", "v_311", "v_313", "v_323")
+
+memory_long <- data %>%
+  select(lfdn, all_of(c(slogans_with_rep, slogans_without_rep))) %>%
+  pivot_longer(cols = -lfdn, names_to = "slogan", values_to = "memory") %>%
+  mutate(repetition = ifelse(slogan %in% slogans_with_rep, 1, 0),
+         memory = factor(memory))
+
+memory_long$memory_numeric <- ifelse(memory_long$memory == "1", 1, 0)
+
+# --- Logistic regression: memory ~ repetition ---
+memory_model <- glm(memory_numeric ~ repetition, family = binomial, data = memory_long)
+summary(memory_model)
+
+# --- Chi-square test ---
+chi_test <- chisq.test(table(memory_long$repetition, memory_long$memory_numeric))
+chi_test
+
+# --- Mediation analysis: fluency as mediator ---
+memory_long$fluency_composite <- rowMeans(data[, c(fluency_with_rep, fluency_without_rep)], na.rm = TRUE)
+
+# 1. IV → Mediator
+model_a <- lm(fluency_composite ~ repetition, data = memory_long)
+# 2. Mediator & IV → DV
+model_b <- glm(memory_numeric ~ fluency_composite + repetition, family = binomial, data = memory_long)
+# 3. Mediation
+med_memory <- mediate(model_a, model_b, treat = "repetition", mediator = "fluency_composite",
+                      boot = TRUE, sims = 5000)
+summary(med_memory)
+
+# -----------------------------
+# 6. Demographics & Controls
+# -----------------------------
+data <- data %>% mutate(
+  mother_language = ifelse(v_94 == 1, "English", ifelse(v_95 == 1, "Other", NA)),
+  age = case_when(v_78 == 1 ~ "Under 18", v_79 == 1 ~ "18–24", v_80 == 1 ~ "25–34",
+                  v_81 == 1 ~ "35–44", v_82 == 1 ~ "45–54", v_83 == 1 ~ "55 or older"),
+  gender = case_when(v_84 == 1 ~ "Female", v_85 == 1 ~ "Male", v_86 == 1 ~ "Prefer not to say"),
+  education = case_when(v_89 == 1 ~ "High school or less", v_90 == 1 ~ "High school diploma",
+                        v_91 == 1 ~ "Bachelor’s degree", v_92 == 1 ~ "Master’s degree or higher")
+)
+
+# Logistic regression with demographics
+memory_model_controls <- glm(memory_numeric ~ repetition + age + gender + education + mother_language,
+                             family = binomial, data = memory_long)
+summary(memory_model_controls)
+
+# -----------------------------
+# 7. Visualization Examples
+# -----------------------------
+# Memory by repetition
+ggplot(memory_long, aes(x = factor(repetition, labels = c("No Repetition", "Repetition")),
+                        y = memory_numeric, fill = factor(repetition))) +
+  geom_bar(stat = "summary", fun = mean, color = "black") +
+  labs(title = "Slogan Memory by Word Repetition", x = "Slogan Type", y = "Proportion Remembered") +
+  theme_minimal() +
+  scale_fill_manual(values = c("lightgray", "black")) +
+  theme(legend.position = "none")
+
+# Liking by slogan type
+ggplot(data, aes(x = slogan_type, y = liking_score)) +
+  geom_boxplot(fill = c("lightblue", "lightgreen")) +
+  labs(title = "Slogan Liking by Word Repetition", x = "Slogan Type", y = "Liking Score") +
+  theme_minimal()
